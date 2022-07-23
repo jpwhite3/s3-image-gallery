@@ -10,7 +10,7 @@ python = "^3.8"
 
 [tool.poetry.dev-dependencies]
 boto3 = "^1.18.45"
-Pillow = "^8.3.2"
+Pillow = "^9.0.1"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
