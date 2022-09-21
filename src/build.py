@@ -1,51 +1,39 @@
 import argparse
 from pathlib import Path
+from typing import List
 import shutil
 from PIL import Image
+from pillow_heif import register_heif_opener
+from collections import OrderedDict
+from jinja2 import Environment, FileSystemLoader
+
+register_heif_opener()
+
 
 OUTPUT_DIR = Path("./dist")
 OUTPUT_GALLERY_DIR = Path("./dist/images")
-SEARCH_GLOB_PATTERN = "*.jpg"
+SEARCH_GLOB_PATTERNS = [
+    "**/*.[jJ][pP]?[gG]",
+    "**/*.[hH][eE][iI][cC]",
+    "**/*.[pP][nN][gG]",
+]
 TEMPLATE_ROOT_DIR = Path("./src/template/html/")
-TEMPLATE_HTML = """
-                <div class="col">
-                    <div class="card shadow-sm">
-                        <img src="%s" class="card-img-top" alt="%s">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div class="btn-group">
-                                    <a href="%s" role="button" class="btn btn-primary btn-sm" target="_blank" download>Download</a>
-                                </div>
-                                <small class="text-muted">%s</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-"""
+environment = Environment(loader=FileSystemLoader(TEMPLATE_ROOT_DIR))
+template = environment.get_template("index.html")
 
 
 def make_thumbnail(image_path, thmb_path):
     with Image.open(image_path) as image:
         image.thumbnail((350, 350))
-        image.save(thmb_path)
+        image.save(thmb_path, format="webp")
 
 
-def get_file_list(inputdir):
-    search_path = Path(inputdir)
-    file_list = search_path.glob(SEARCH_GLOB_PATTERN)
-    return [Path(f) for f in sorted(file_list)]
-
-
-def render_gallery_html(filepath):
-    # TODO: Render paths relative to dist
-    filepath = filepath.relative_to(OUTPUT_DIR)
-    parameter_list = (
-        str(filepath),  # Relative path to thumbnail
-        filepath.name.replace("thmb_", ""),  # File basename without prefix
-        str(filepath).replace("thmb_", ""),  # Full size file path
-        filepath.name.replace("thmb_", ""),  # File basename without suffix
-    )
-    return TEMPLATE_HTML % parameter_list
+def get_file_list(inputdir) -> List[Path]:
+    output_list = []
+    for pattern in SEARCH_GLOB_PATTERNS:
+        for f in inputdir.glob(pattern):
+            output_list.append(Path(f))
+    return sorted(output_list)
 
 
 def main():
@@ -60,20 +48,36 @@ def main():
     )
 
     args = parser.parse_args()
+    input_path = Path(args.inputdir)
+    gallery_data = OrderedDict()
+    for source_file_path in get_file_list(input_path):
+        target_thmb_path = source_file_path.parent.joinpath(
+            ".thmb", source_file_path.name
+        ).with_suffix(".webp")
 
-    html_gallery_string = ""
-    for filepath in get_file_list(args.inputdir):
-        target_path = OUTPUT_GALLERY_DIR.joinpath(filepath.name)
-        thmb_path = OUTPUT_GALLERY_DIR.joinpath("thmb_" + filepath.name)
+        if not target_thmb_path.exists():
+            target_thmb_path.parent.mkdir(parents=True, exist_ok=True)
+            make_thumbnail(source_file_path, target_thmb_path)
 
-        shutil.copy(filepath, target_path)
-        make_thumbnail(filepath, thmb_path)
-        html_gallery_string += render_gallery_html(thmb_path)
+        relative_file_path = source_file_path.relative_to(input_path)
+        relative_thmb_path = target_thmb_path.relative_to(input_path)
+        relative_root_dir_path = relative_file_path.parent
 
-    with open(TEMPLATE_ROOT_DIR.joinpath("index.html"), "rt") as fin:
-        with open(OUTPUT_DIR.joinpath("index.html"), "wt") as fout:
-            for line in fin:
-                fout.write(line.replace("{{GALLERY}}", html_gallery_string))
+        if str(relative_root_dir_path) not in gallery_data:
+            gallery_data[str(relative_root_dir_path)] = []
+
+        gallery_data[str(relative_root_dir_path)].append(
+            {
+                "image_path": relative_file_path,
+                "thumbnail_path": relative_thmb_path,
+            }
+        )
+
+    content = template.render(gallery=gallery_data)
+    output_file_path = OUTPUT_DIR.joinpath("index.html")
+    with open(output_file_path, mode="w", encoding="utf-8") as message:
+        message.write(content)
+        print(f"... wrote {output_file_path}")
 
 
 if __name__ == "__main__":
