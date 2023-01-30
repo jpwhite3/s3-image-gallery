@@ -1,15 +1,20 @@
-import argparse
+import argparse, os, shutil, logging
 from pathlib import Path
 from typing import List
-import shutil
+from collections import OrderedDict
 from PIL import Image
 from pillow_heif import register_heif_opener
-from collections import OrderedDict
 from jinja2 import Environment, FileSystemLoader
+from aws import s3_key_exists, upload_to_s3
 
 register_heif_opener()
 
+logging.basicConfig(
+    level=os.environ.get("LOGLEVEL", "INFO").upper(),
+    format="[%(asctime)s] [%(levelname)s] [%(module)s] %(message)s",
+)
 
+LOG = logging.getLogger(__name__)
 OUTPUT_DIR = Path("./dist")
 OUTPUT_GALLERY_DIR = Path("./dist/images")
 SEARCH_GLOB_PATTERNS = [
@@ -23,6 +28,7 @@ template = environment.get_template("index.html")
 
 
 def make_thumbnail(image_path, thmb_path):
+    LOG.debug(f"Creating thumbnail for {image_path}")
     with Image.open(image_path) as image:
         image.thumbnail((350, 350))
         image.save(thmb_path, format="webp")
