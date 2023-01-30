@@ -1,4 +1,4 @@
-import argparse, os
+import argparse, os, json
 from pathlib import Path
 from typing import List
 from collections import OrderedDict
@@ -80,6 +80,12 @@ def main():
     with open(output_file_path, mode="w", encoding="utf-8") as message:
         message.write(content)
         print(f"... wrote {output_file_path}")
+
+    manifest_file_path = OUTPUT_DIR.joinpath("manifest.json")
+    with open(manifest_file_path, mode="w", encoding="utf-8") as message:
+        json_data = json.dumps(gallery_data, default=lambda o: str(o), indent=4)
+        message.write(json_data)
+        print(f"... wrote {manifest_file_path}")
 
 
 if __name__ == "__main__":
