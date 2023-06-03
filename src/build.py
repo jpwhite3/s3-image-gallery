@@ -11,7 +11,7 @@ register_heif_opener()
 OUTPUT_DIR = Path("./dist")
 OUTPUT_GALLERY_DIR = Path("./dist/images")
 SEARCH_GLOB_PATTERNS = [
-    "**/*.[jJ][pP]?[gG]",
+    "**/*.[jJ][pP][gG]",
     "**/*.[hH][eE][iI][cC]",
     "**/*.[pP][nN][gG]",
 ]
@@ -25,12 +25,14 @@ def make_thumbnail(image_path, thmb_path):
     with Image.open(image_path) as image:
         image.thumbnail((350, 350))
         image.save(thmb_path, format="webp")
+    print(f"Wrote thumbnail for {thmb_path}")
 
 
 def get_file_list(inputdir) -> List[Path]:
     output_list = []
     for pattern in SEARCH_GLOB_PATTERNS:
         for f in inputdir.glob(pattern):
+            print(f"Found file {f}")
             output_list.append(Path(f))
     return sorted(output_list)
 
