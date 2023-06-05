@@ -2,7 +2,7 @@ import argparse, os, json
 from pathlib import Path
 from typing import List
 from collections import OrderedDict
-from PIL import Image
+from PIL import Image, ImageOps
 from pillow_heif import register_heif_opener
 from jinja2 import Environment, FileSystemLoader
 
@@ -23,6 +23,7 @@ template = environment.get_template("index.html")
 def make_thumbnail(image_path, thmb_path):
     print(f"Creating thumbnail for {image_path}")
     with Image.open(image_path) as image:
+        image = ImageOps.exif_transpose(image)
         image.thumbnail((350, 350))
         image.save(thmb_path, format="webp")
     print(f"Wrote thumbnail for {thmb_path}")
